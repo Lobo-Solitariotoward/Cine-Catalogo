@@ -141,11 +141,11 @@ function TarjetaNetflix({ pelicula, enLista, onAgregar, onTrailer }: any) {
               {pelicula.tipo === 'serie' && <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 4, background: 'rgba(139,92,246,0.75)', color: 'white', fontWeight: 600 }}>Serie</span>}
             </div>
             <div style={{ display: 'flex', gap: 6 }}>
-              <button onClick={(e) => { e.stopPropagation(); onTrailer(pelicula) }}
+              <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); onTrailer(pelicula) }}
                 style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '8px', borderRadius: 8, border: 'none', background: 'linear-gradient(135deg, #f5c518, #c9a227)', color: '#080808', fontWeight: 700, cursor: 'pointer', fontSize: 11 }}>
                 <Play size={11} fill="#080808" /> Tráiler
               </button>
-              <button onClick={(e) => { e.stopPropagation(); onAgregar(pelicula) }}
+              <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); onAgregar(pelicula) }}
                 style={{ width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: `1px solid ${enLista ? 'rgba(0,212,255,0.5)' : 'rgba(255,255,255,0.2)'}`, background: enLista ? 'rgba(0,212,255,0.15)' : 'rgba(255,255,255,0.1)', color: enLista ? '#00d4ff' : 'white', cursor: 'pointer', flexShrink: 0 }}>
                 {enLista ? <Check size={13} /> : <Plus size={13} />}
               </button>
