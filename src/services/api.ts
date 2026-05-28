@@ -16,7 +16,10 @@ api.interceptors.response.use(
     error => {
         if (error.response?.status === 401) {
             const url = error.config?.url || ''
-            if (url.includes('/auth/')) {
+            // NO redirigir cuando el fallo es del propio login/registro:
+            // ahí queremos que el formulario muestre el error en pantalla.
+            // Solo redirigir cuando una ruta protegida devuelve 401 (token expirado/ inválido).
+            if (!url.includes('/auth/login') && !url.includes('/auth/register')) {
                 localStorage.removeItem('cinelog_token')
                 localStorage.removeItem('cinelog_sesion')
                 window.location.href = '/login'

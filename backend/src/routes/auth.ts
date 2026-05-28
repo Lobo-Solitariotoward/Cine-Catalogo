@@ -48,10 +48,10 @@ router.post('/login', async (req: Request, res: Response) => {
             return res.status(400).json({ error: 'Correo y contraseña requeridos' })
 
         const usuario = await Usuario.findOne({ where: { email } })
-        if (!usuario) return res.status(401).json({ error: 'Correo o contraseña incorrectos' })
+        if (!usuario) return res.status(401).json({ error: 'Usuario no existente' })
 
         const valido = await bcrypt.compare(password, usuario.password_hash)
-        if (!valido) return res.status(401).json({ error: 'Correo o contraseña incorrectos' })
+        if (!valido) return res.status(401).json({ error: 'Contraseña incorrecta' })
 
         await ActivityLog.create({ usuario_id: usuario.id, accion: 'login', detalle: { email } })
 

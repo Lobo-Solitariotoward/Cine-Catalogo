@@ -64,14 +64,15 @@ function usePoster(imdb_id) {
 }
 
 // ─── Modal Trailer ────────────────────────────────────────────
-function ModalTrailer({ pelicula, onCerrar }) {
+// Recibe un videoId ya resuelto (o null mientras carga / si no hay tráiler)
+function ModalTrailer({ titulo, videoId, cargando, error, onCerrar }) {
   return (
     <div onClick={onCerrar}
       style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.93)', backdropFilter: 'blur(16px)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
       <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 960 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <div>
-            <h3 style={{ color: 'white', fontFamily: 'Clash Display, sans-serif', fontWeight: 700, fontSize: 20 }}>{pelicula.titulo}</h3>
+            <h3 style={{ color: 'white', fontFamily: 'Clash Display, sans-serif', fontWeight: 700, fontSize: 20 }}>{titulo}</h3>
             <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, marginTop: 2 }}>Tráiler oficial</p>
           </div>
           <button onClick={onCerrar} style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(255,255,255,0.08)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
@@ -79,12 +80,25 @@ function ModalTrailer({ pelicula, onCerrar }) {
           </button>
         </div>
         <div style={{ position: 'relative', paddingBottom: '56.25%', background: '#000', borderRadius: 20, overflow: 'hidden' }}>
-          <iframe
-            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
-            src={`${pelicula.trailer}?autoplay=1&rel=0`}
-            title={pelicula.titulo}
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen />
+          {cargando ? (
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+              <Loader size={32} style={{ color: '#f5c518', animation: 'spin 1s linear infinite' }} />
+              <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13 }}>Buscando tráiler...</p>
+            </div>
+          ) : error ? (
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, padding: 24, textAlign: 'center' }}>
+              <span style={{ fontSize: 42 }}>🎬</span>
+              <p style={{ color: 'white', fontSize: 16, fontWeight: 600 }}>Tráiler no disponible</p>
+              <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, maxWidth: 380 }}>{error}</p>
+            </div>
+          ) : videoId ? (
+            <iframe
+              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
+              src={`https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0`}
+              title={titulo}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen />
+          ) : null}
         </div>
       </div>
     </div>
@@ -190,11 +204,30 @@ export default function Inicio({ sesion }: InicioProps) {
     const navigate = useNavigate()
   const [lista, setLista] = useState([])
   const [heroEnLista, setHeroEnLista] = useState(false)
-  const [trailerModal, setTrailerModal] = useState(null)
+  const [trailerModal, setTrailerModal] = useState(null)  // { titulo, videoId, cargando, error }
   const [toastMsg, setToastMsg] = useState(null)
   const [heroPoster, setHeroPoster] = useState(null)
 
   const mostrarToast = msg => { setToastMsg(msg); setTimeout(() => setToastMsg(null), 3000) }
+
+  // ─── Abrir tráiler dinámicamente (siempre buscando en YouTube vía backend) ──
+  const abrirTrailer = async (pelicula) => {
+    // Mostrar modal en estado "cargando" enseguida
+    setTrailerModal({ titulo: pelicula.titulo, videoId: null, cargando: true, error: null })
+    try {
+      const { data } = await api.get('/movies/trailer', { params: { q: pelicula.titulo } })
+      if (data?.videoId) {
+        setTrailerModal({ titulo: pelicula.titulo, videoId: data.videoId, cargando: false, error: null })
+      } else {
+        setTrailerModal({ titulo: pelicula.titulo, videoId: null, cargando: false, error: 'No se encontró un tráiler para esta película.' })
+      }
+    } catch (err) {
+      const msg = err?.response?.status === 404
+        ? 'No se encontró un tráiler para esta película.'
+        : 'No pudimos cargar el tráiler. Intenta más tarde.'
+      setTrailerModal({ titulo: pelicula.titulo, videoId: null, cargando: false, error: msg })
+    }
+  }
 
   // Cargar poster del hero
   useEffect(() => {
@@ -281,7 +314,7 @@ export default function Inicio({ sesion }: InicioProps) {
               {HERO.sinopsis}
             </p>
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-              <button onClick={() => setTrailerModal(HERO)}
+              <button onClick={() => abrirTrailer(HERO)}
                 style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'linear-gradient(135deg, #f5c518, #c9a227)', color: '#080808', fontWeight: 700, padding: '14px 32px', borderRadius: 14, border: 'none', cursor: 'pointer', fontSize: 15, fontFamily: 'Clash Display, sans-serif', boxShadow: '0 8px 28px rgba(245,197,24,0.35)' }}>
                 <Play size={18} fill="#080808" /> Ver tráiler
               </button>
@@ -306,13 +339,13 @@ export default function Inicio({ sesion }: InicioProps) {
 
       <SeccionScroll titulo="Mi lista por ver" acento="linear-gradient(135deg, #f5c518, #c9a227)" link="/mis-listas">
         {WATCHLIST_IDS.map(p => (
-          <TarjetaNetflix key={p.id} pelicula={p} enLista={enLista(p.id)} onAgregar={agregarALista} onTrailer={setTrailerModal} />
+          <TarjetaNetflix key={p.id} pelicula={p} enLista={enLista(p.id)} onAgregar={agregarALista} onTrailer={abrirTrailer} />
         ))}
       </SeccionScroll>
 
       <SeccionScroll titulo="Tendencias esta semana" acento="linear-gradient(135deg, #00d4ff, #1a6cff)" link="/buscar">
         {TENDENCIAS_IDS.map(p => (
-          <TarjetaNetflix key={p.id} pelicula={p} enLista={enLista(p.id)} onAgregar={agregarALista} onTrailer={setTrailerModal} />
+          <TarjetaNetflix key={p.id} pelicula={p} enLista={enLista(p.id)} onAgregar={agregarALista} onTrailer={abrirTrailer} />
         ))}
       </SeccionScroll>
 
@@ -334,7 +367,15 @@ export default function Inicio({ sesion }: InicioProps) {
         </div>
       </section>
 
-      {trailerModal && <ModalTrailer pelicula={trailerModal} onCerrar={() => setTrailerModal(null)} />}
+      {trailerModal && (
+        <ModalTrailer
+          titulo={trailerModal.titulo}
+          videoId={trailerModal.videoId}
+          cargando={trailerModal.cargando}
+          error={trailerModal.error}
+          onCerrar={() => setTrailerModal(null)}
+        />
+      )}
 
       {toastMsg && (
         <div style={{ position: 'fixed', bottom: 32, left: '50%', transform: 'translateX(-50%)', zIndex: 300 }}>
