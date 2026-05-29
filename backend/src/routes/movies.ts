@@ -43,13 +43,16 @@ router.get('/trailer', verificarToken, async (req: AuthRequest, res: Response) =
         })
 
         // YouTube embeds los video IDs en el HTML como "videoId":"XXXXXXXXXXX"
-        const matches = data.match(/"videoId":"([a-zA-Z0-9_-]{11})"/g)
-        if (!matches || matches.length === 0)
+        const matches = data.match(/"videoId":"([a-zA-Z0-9_-]{11})"/g) || []
+        const ids = matches.map((m: string) => m.replace('"videoId":"', '').replace('"', ''))
+        // Deduplica y se queda con los 8 primeros como candidatos
+        const uniqueIds = [...new Set<string>(ids)].slice(0, 8)
+
+        if (uniqueIds.length === 0)
             return res.status(404).json({ error: 'No se encontró tráiler' })
 
-        // El primer resultado es el más relevante
-        const videoId = matches[0].replace('"videoId":"', '').replace('"', '')
-        res.json({ videoId })
+        // Devuelve array de candidatos + videoId (el primero) para retrocompatibilidad
+        res.json({ videoIds: uniqueIds, videoId: uniqueIds[0] })
     } catch (error: any) {
         res.status(500).json({ error: 'Error al buscar tráiler', detalle: error.message })
     }

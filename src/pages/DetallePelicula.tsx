@@ -4,13 +4,14 @@ import { Play, Plus, Star, X, ChevronLeft, ThumbsUp, Trash2, Edit3, Check, Send,
 import api from '../services/api'
 import { crearResena, actualizarResena, eliminarResena, darLike } from '../services/reviewService'
 import { agregarALista } from '../services/listService'
+import YouTubePlayer from '../components/YouTubePlayer'
 
 interface DetallePeliculaProps {
     sesion: any
 }
 
 // ─── Modal Trailer ────────────────────────────────────────────
-function ModalTrailer({ videoId, titulo, onCerrar }: { videoId: string; titulo: string; onCerrar: () => void }) {
+function ModalTrailer({ videoIds, titulo, onCerrar, onAllFailed }: { videoIds: string[]; titulo: string; onCerrar: () => void; onAllFailed: () => void }) {
     return (
         <div onClick={onCerrar}
             style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.93)', backdropFilter: 'blur(16px)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
@@ -25,12 +26,7 @@ function ModalTrailer({ videoId, titulo, onCerrar }: { videoId: string; titulo: 
                     </button>
                 </div>
                 <div style={{ position: 'relative', paddingBottom: '56.25%', background: '#000', borderRadius: 20, overflow: 'hidden' }}>
-                    <iframe
-                        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
-                        src={`https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0`}
-                        title={titulo}
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        allowFullScreen />
+                    <YouTubePlayer videoIds={videoIds} titulo={titulo} onAllFailed={onAllFailed} />
                 </div>
             </div>
         </div>
@@ -127,7 +123,7 @@ export default function DetallePelicula({ sesion }: DetallePeliculaProps) {
     const [agregando, setAgregando] = useState(false)
 
     // Trailer
-    const [trailerVideoId, setTrailerVideoId] = useState<string | null>(null)
+    const [trailerVideoIds, setTrailerVideoIds] = useState<string[] | null>(null)
     const [trailerOpen, setTrailerOpen] = useState(false)
     const [buscandoTrailer, setBuscandoTrailer] = useState(false)
 
@@ -170,13 +166,18 @@ export default function DetallePelicula({ sesion }: DetallePeliculaProps) {
 
     // ─── Ver Tráiler ──────────────────────────────────────────
     const handleVerTrailer = async () => {
-        // Si ya tenemos el videoId, abrir directo
-        if (trailerVideoId) { setTrailerOpen(true); return }
+        // Si ya tenemos los videoIds, abrir directo
+        if (trailerVideoIds && trailerVideoIds.length > 0) { setTrailerOpen(true); return }
         setBuscandoTrailer(true)
         try {
             const titulo = pelicula?.titulo || peliculaMySQL?.titulo || ''
             const { data } = await api.get('/movies/trailer', { params: { q: titulo } })
-            setTrailerVideoId(data.videoId)
+            // Acepta videoIds[] (nuevo) o videoId (antiguo) por retrocompatibilidad
+            const ids: string[] = Array.isArray(data?.videoIds) && data.videoIds.length > 0
+                ? data.videoIds
+                : data?.videoId ? [data.videoId] : []
+            if (ids.length === 0) throw new Error('Sin candidatos')
+            setTrailerVideoIds(ids)
             setTrailerOpen(true)
         } catch {
             alert('No se encontró el tráiler, intenta más tarde.')
@@ -444,11 +445,15 @@ export default function DetallePelicula({ sesion }: DetallePeliculaProps) {
             </div>
 
             {/* Modal trailer */}
-            {trailerOpen && trailerVideoId && (
+            {trailerOpen && trailerVideoIds && trailerVideoIds.length > 0 && (
                 <ModalTrailer
-                    videoId={trailerVideoId}
+                    videoIds={trailerVideoIds}
                     titulo={pelicula?.titulo || ''}
                     onCerrar={() => setTrailerOpen(false)}
+                    onAllFailed={() => {
+                        setTrailerOpen(false)
+                        alert('Ninguno de los tráilers disponibles se puede reproducir aquí.')
+                    }}
                 />
             )}
         </div>

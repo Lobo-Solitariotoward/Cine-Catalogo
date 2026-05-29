@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Play, Plus, Info, Star, ChevronRight, ChevronLeft, X, Check, Loader } from 'lucide-react'
 import api from '../services/api'
+import YouTubePlayer from '../components/YouTubePlayer'
 
 const HERO_ID = 'tt0948470'
 
@@ -64,8 +65,9 @@ function usePoster(imdb_id) {
 }
 
 // ─── Modal Trailer ────────────────────────────────────────────
-// Recibe un videoId ya resuelto (o null mientras carga / si no hay tráiler)
-function ModalTrailer({ titulo, videoId, cargando, error, onCerrar }) {
+// Recibe una lista de videoIds candidatos. El YouTubePlayer interno prueba
+// uno tras otro y avisa con onAllFailed si todos están bloqueados/eliminados.
+function ModalTrailer({ titulo, videoIds, cargando, error, onCerrar, onAllFailed }) {
   return (
     <div onClick={onCerrar}
       style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.93)', backdropFilter: 'blur(16px)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
@@ -91,13 +93,8 @@ function ModalTrailer({ titulo, videoId, cargando, error, onCerrar }) {
               <p style={{ color: 'white', fontSize: 16, fontWeight: 600 }}>Tráiler no disponible</p>
               <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, maxWidth: 380 }}>{error}</p>
             </div>
-          ) : videoId ? (
-            <iframe
-              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
-              src={`https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0`}
-              title={titulo}
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen />
+          ) : videoIds && videoIds.length > 0 ? (
+            <YouTubePlayer videoIds={videoIds} titulo={titulo} onAllFailed={onAllFailed} />
           ) : null}
         </div>
       </div>
@@ -204,7 +201,7 @@ export default function Inicio({ sesion }: InicioProps) {
     const navigate = useNavigate()
   const [lista, setLista] = useState([])
   const [heroEnLista, setHeroEnLista] = useState(false)
-  const [trailerModal, setTrailerModal] = useState(null)  // { titulo, videoId, cargando, error }
+  const [trailerModal, setTrailerModal] = useState(null)  // { titulo, videoIds, cargando, error }
   const [toastMsg, setToastMsg] = useState(null)
   const [heroPoster, setHeroPoster] = useState(null)
 
@@ -213,20 +210,30 @@ export default function Inicio({ sesion }: InicioProps) {
   // ─── Abrir tráiler dinámicamente (siempre buscando en YouTube vía backend) ──
   const abrirTrailer = async (pelicula) => {
     // Mostrar modal en estado "cargando" enseguida
-    setTrailerModal({ titulo: pelicula.titulo, videoId: null, cargando: true, error: null })
+    setTrailerModal({ titulo: pelicula.titulo, videoIds: null, cargando: true, error: null })
     try {
       const { data } = await api.get('/movies/trailer', { params: { q: pelicula.titulo } })
-      if (data?.videoId) {
-        setTrailerModal({ titulo: pelicula.titulo, videoId: data.videoId, cargando: false, error: null })
+      // Acepta tanto el nuevo formato (videoIds[]) como el antiguo (videoId) por si el backend
+      // aún no se ha redesplegado.
+      const ids = Array.isArray(data?.videoIds) && data.videoIds.length > 0
+        ? data.videoIds
+        : data?.videoId ? [data.videoId] : []
+      if (ids.length > 0) {
+        setTrailerModal({ titulo: pelicula.titulo, videoIds: ids, cargando: false, error: null })
       } else {
-        setTrailerModal({ titulo: pelicula.titulo, videoId: null, cargando: false, error: 'No se encontró un tráiler para esta película.' })
+        setTrailerModal({ titulo: pelicula.titulo, videoIds: null, cargando: false, error: 'No se encontró un tráiler para esta película.' })
       }
     } catch (err) {
       const msg = err?.response?.status === 404
         ? 'No se encontró un tráiler para esta película.'
         : 'No pudimos cargar el tráiler. Intenta más tarde.'
-      setTrailerModal({ titulo: pelicula.titulo, videoId: null, cargando: false, error: msg })
+      setTrailerModal({ titulo: pelicula.titulo, videoIds: null, cargando: false, error: msg })
     }
+  }
+
+  // Llamado por el YouTubePlayer cuando todos los candidatos fallan
+  const handleTrailerAllFailed = () => {
+    setTrailerModal(t => t ? { ...t, videoIds: null, error: 'Ninguno de los tráilers disponibles se puede reproducir aquí.' } : null)
   }
 
   // Cargar poster del hero
@@ -370,10 +377,11 @@ export default function Inicio({ sesion }: InicioProps) {
       {trailerModal && (
         <ModalTrailer
           titulo={trailerModal.titulo}
-          videoId={trailerModal.videoId}
+          videoIds={trailerModal.videoIds}
           cargando={trailerModal.cargando}
           error={trailerModal.error}
           onCerrar={() => setTrailerModal(null)}
+          onAllFailed={handleTrailerAllFailed}
         />
       )}
 
