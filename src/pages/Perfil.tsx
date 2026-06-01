@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { User, Mail, Lock, LogOut, Edit3, Check, Eye, EyeOff, Loader } from 'lucide-react'
+import { User, Mail, Lock, LogOut, Edit3, Check, Eye, EyeOff, Loader, Activity } from 'lucide-react'
 import api from '../services/api'
 import { logout } from '../services/authService'
+import TimelineActividad from '../components/TimelineActividad'
+import log from '../utils/logger'
 
 export default function Perfil({ sesion, onLogout }) {
     const navigate = useNavigate()
@@ -38,7 +40,7 @@ export default function Perfil({ sesion, onLogout }) {
                     resenas: resenas.data?.length || 0,
                 })
             } catch (err) {
-                console.error('Error cargando stats:', err)
+                log.error('Error cargando stats:', err)
             }
         }
         cargarStats()
@@ -185,6 +187,19 @@ export default function Perfil({ sesion, onLogout }) {
                                 </div>
                             </div>
                         )}
+                    </div>
+                </div>
+
+                {/* Actividad reciente */}
+                <div style={{ background: '#141414', borderRadius: 20, border: '1px solid rgba(255,255,255,0.06)', overflow: 'hidden', marginBottom: 12 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '16px 24px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                        <Activity size={16} style={{ color: '#f5c518' }} />
+                        <h3 style={{ color: 'white', fontFamily: 'Clash Display, sans-serif', fontWeight: 700, fontSize: 16 }}>
+                            Actividad reciente
+                        </h3>
+                    </div>
+                    <div style={{ padding: '20px 24px' }}>
+                        <TimelineActividad limit={10} />
                     </div>
                 </div>
 

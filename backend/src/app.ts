@@ -17,6 +17,7 @@ import userRoutes from './routes/users'
 import genreRoutes from './routes/genres'
 import historyRoutes from './routes/history'
 import notificationRoutes from './routes/notifications'
+import activityRoutes from './routes/activity'
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -38,6 +39,7 @@ app.use('/api/users', userRoutes)
 app.use('/api/genres', genreRoutes)
 app.use('/api/history', historyRoutes)
 app.use('/api/notifications', notificationRoutes)
+app.use('/api/activity', activityRoutes)
 
 app.get('/', (_req, res) => {
     res.json({ message: '🎬 CineLog API funcionando (TypeScript)', version: '2.0.0' })

@@ -1,6 +1,8 @@
 import express, { Response } from 'express'
 import Calificacion from '../models/mysql/Calificacion'
+import PeliculaSerie from '../models/mysql/PeliculaSerie'
 import { verificarToken, AuthRequest } from '../middlewares/auth'
+import { logActivity } from '../utils/logActivity'
 
 const router = express.Router()
 
@@ -46,6 +48,13 @@ router.post('/', verificarToken, async (req: AuthRequest, res: Response) => {
             defaults: { usuario_id: req.usuario.id, pelicula_id, puntuacion }
         })
         if (!created) await calif.update({ puntuacion })
+
+        const pelicula = await PeliculaSerie.findByPk(pelicula_id)
+        logActivity(req.usuario.id, created ? 'calificacion_crear' : 'calificacion_actualizar', {
+            pelicula_id,
+            titulo: pelicula?.titulo,
+            puntuacion
+        })
 
         res.status(created ? 201 : 200).json(calif)
     } catch (error: any) {

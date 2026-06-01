@@ -1,7 +1,9 @@
 import express, { Response } from 'express'
 import Resena from '../models/mysql/Resena'
 import Usuario from '../models/mysql/Usuario'
+import PeliculaSerie from '../models/mysql/PeliculaSerie'
 import { verificarToken, AuthRequest } from '../middlewares/auth'
+import { logActivity } from '../utils/logActivity'
 
 const router = express.Router()
 
@@ -32,6 +34,12 @@ router.post('/', verificarToken, async (req: AuthRequest, res: Response) => {
             texto,
             calificacion: calificacion || 5
         })
+        const pelicula = await PeliculaSerie.findByPk(pelicula_id)
+        logActivity(req.usuario.id, 'resena_crear', {
+            pelicula_id,
+            titulo: pelicula?.titulo,
+            calificacion: calificacion || 5
+        })
         res.status(201).json(resena)
     } catch (error: any) {
         res.status(500).json({ error: 'Error al crear reseña', detalle: error.message })
@@ -46,6 +54,12 @@ router.put('/:id', verificarToken, async (req: AuthRequest, res: Response) => {
         if (resena.usuario_id !== req.usuario.id) return res.status(403).json({ error: 'Sin permiso' })
 
         await resena.update({ texto: req.body.texto, calificacion: req.body.calificacion })
+        const pelicula = await PeliculaSerie.findByPk(resena.pelicula_id)
+        logActivity(req.usuario.id, 'resena_editar', {
+            pelicula_id: resena.pelicula_id,
+            titulo: pelicula?.titulo,
+            calificacion: req.body.calificacion
+        })
         res.json(resena)
     } catch (error: any) {
         res.status(500).json({ error: 'Error al actualizar reseña', detalle: error.message })
@@ -59,7 +73,9 @@ router.delete('/:id', verificarToken, async (req: AuthRequest, res: Response) =>
         if (!resena) return res.status(404).json({ error: 'Reseña no encontrada' })
         if (resena.usuario_id !== req.usuario.id) return res.status(403).json({ error: 'Sin permiso' })
 
+        const pelicula = await PeliculaSerie.findByPk(resena.pelicula_id)
         await resena.destroy()
+        logActivity(req.usuario.id, 'resena_eliminar', { pelicula_id: resena.pelicula_id, titulo: pelicula?.titulo })
         res.json({ mensaje: 'Reseña eliminada' })
     } catch (error: any) {
         res.status(500).json({ error: 'Error al eliminar reseña', detalle: error.message })
