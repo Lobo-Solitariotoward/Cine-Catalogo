@@ -1,11 +1,19 @@
 import express, { Request, Response } from 'express'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
+import { Op } from 'sequelize'
 import Usuario from '../models/mysql/Usuario'
 import Notificacion from '../models/mysql/Notificacion'
 import ActivityLog from '../models/mongo/ActivityLog'
 
 const router = express.Router()
+
+// Formatea fecha "27 de mayo de 2026, 19:30"
+const formatearFecha = (d: Date) => {
+    const fecha = d.toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })
+    const hora = d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false })
+    return `${fecha}, ${hora}`
+}
 
 // POST /api/auth/register
 router.post('/register', async (req: Request, res: Response) => {
@@ -22,8 +30,9 @@ router.post('/register', async (req: Request, res: Response) => {
 
         await ActivityLog.create({ usuario_id: usuario.id, accion: 'registro', detalle: { email } })
 
+        const ahora = new Date()
         await Notificacion.bulkCreate([
-            { usuario_id: usuario.id, tipo: 'sistema', mensaje: `👋 ¡Bienvenido a CineLog, ${nombre}! Empieza agregando tus películas favoritas.` },
+            { usuario_id: usuario.id, tipo: 'sistema', mensaje: `🎉 Cuenta creada exitosamente el ${formatearFecha(ahora)}. ¡Bienvenido, ${nombre}!` },
             { usuario_id: usuario.id, tipo: 'sistema', mensaje: '🎬 Explora miles de películas y series en el catálogo.' },
             { usuario_id: usuario.id, tipo: 'sistema', mensaje: '⭐ Califica y reseña las películas que has visto.' },
         ])
@@ -54,6 +63,26 @@ router.post('/login', async (req: Request, res: Response) => {
         if (!valido) return res.status(401).json({ error: 'Contraseña incorrecta' })
 
         await ActivityLog.create({ usuario_id: usuario.id, accion: 'login', detalle: { email } })
+
+        // Notificación de login: solo crear una por día (para que se acumulen pero no spameen)
+        const inicioDelDia = new Date()
+        inicioDelDia.setHours(0, 0, 0, 0)
+        const yaHayLoginHoy = await Notificacion.findOne({
+            where: {
+                usuario_id: usuario.id,
+                tipo: 'sistema',
+                mensaje: { [Op.like]: '🔐 Iniciaste sesión%' },
+                creado_en: { [Op.gte]: inicioDelDia }
+            }
+        })
+        if (!yaHayLoginHoy) {
+            const ahora = new Date()
+            await Notificacion.create({
+                usuario_id: usuario.id,
+                tipo: 'sistema',
+                mensaje: `🔐 Iniciaste sesión el ${formatearFecha(ahora)}`
+            })
+        }
 
         const token = jwt.sign(
             { id: usuario.id, email: usuario.email, nombre: usuario.nombre },

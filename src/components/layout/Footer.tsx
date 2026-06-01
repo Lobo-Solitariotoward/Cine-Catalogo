@@ -39,7 +39,7 @@ export default function Footer() {
                         {[
                             { titulo: 'Navegación', links: [{ to: '/inicio', l: 'Inicio' }, { to: '/buscar', l: 'Buscar' }, { to: '/mis-listas', l: 'Mis Listas' }, { to: '/historial', l: 'Historial' }] },
                             { titulo: 'Cuenta', links: [{ to: '/perfil', l: 'Mi Perfil' }, { to: '/mis-resenas', l: 'Mis Reseñas' }, { to: '/recomendaciones', l: 'Recomendaciones' }, { to: '/notificaciones', l: 'Notificaciones' }] },
-                            { titulo: 'Info', links: [{ to: '#', l: 'Acerca de' }, { to: '#', l: 'Privacidad' }, { to: '#', l: 'Términos' }, { to: '#', l: 'Contacto' }] },
+                            { titulo: 'Info', links: [{ to: '/acerca', l: 'Acerca de' }, { to: '/privacidad', l: 'Privacidad' }, { to: '/terminos', l: 'Términos' }, { to: '/contacto', l: 'Contacto' }] },
                         ].map(col => (
                             <div key={col.titulo}>
                                 <p className="font-display font-600 text-white mb-4">{col.titulo}</p>

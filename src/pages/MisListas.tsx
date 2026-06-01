@@ -2,12 +2,15 @@ import { useState, useEffect } from 'react'
 import { Trash2, Star, Edit3, Check, X, BookMarked, Eye, Heart, Plus, Loader } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import api from '../services/api'
+import log from '../utils/logger'
 
 const TABS = [
   { key: 'por_ver',  label: 'Por ver',   icon: BookMarked },
   { key: 'visto',    label: 'Vistas',    icon: Eye },
   { key: 'favorito', label: 'Favoritos', icon: Heart },
 ]
+
+const PLATAFORMAS = ['Netflix', 'Prime Video', 'HBO Max', 'Disney+', 'Apple TV+', 'Cine', 'Otro']
 
 // ─── Modal calificación ───────────────────────────────────────
 function ModalCalificar({ pelicula, onGuardar, onCerrar }) {
@@ -40,6 +43,44 @@ function ModalCalificar({ pelicula, onGuardar, onCerrar }) {
         <div style={{ display: 'flex', gap: 10 }}>
           <button onClick={onCerrar} style={{ flex: 1, padding: '10px', borderRadius: 12, border: '1px solid rgba(255,255,255,0.08)', background: 'transparent', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: 14 }}>Cancelar</button>
           <button onClick={() => onGuardar(cal)} style={{ flex: 1, padding: '10px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg, #f5c518, #c9a227)', color: '#080808', fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>Guardar</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Modal seleccionar plataforma ─────────────────────────────
+function ModalPlataforma({ pelicula, onConfirmar, onCerrar }) {
+  const [plataforma, setPlataforma] = useState('Netflix')
+  return (
+    <div onClick={onCerrar}
+      style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)' }}>
+      <div onClick={e => e.stopPropagation()}
+        style={{ background: '#131313', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 20, padding: 24, width: '100%', maxWidth: 400 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+          <div>
+            <h3 style={{ color: 'white', fontWeight: 700, fontSize: 18 }}>¿Dónde la viste?</h3>
+            <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, marginTop: 2 }}>{pelicula.titulo}</p>
+          </div>
+          <button onClick={onCerrar} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.4)' }}><X size={20} /></button>
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
+          {PLATAFORMAS.map(p => (
+            <button key={p} onClick={() => setPlataforma(p)}
+              style={{
+                padding: '8px 14px', borderRadius: 10, fontSize: 13, fontWeight: 600,
+                border: `1px solid ${plataforma === p ? 'rgba(245,197,24,0.4)' : 'rgba(255,255,255,0.08)'}`,
+                background: plataforma === p ? 'rgba(245,197,24,0.1)' : 'transparent',
+                color: plataforma === p ? '#f5c518' : 'rgba(255,255,255,0.5)',
+                cursor: 'pointer', transition: 'all 0.2s'
+              }}>
+              {p}
+            </button>
+          ))}
+        </div>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button onClick={onCerrar} style={{ flex: 1, padding: '10px', borderRadius: 12, border: '1px solid rgba(255,255,255,0.08)', background: 'transparent', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: 14 }}>Cancelar</button>
+          <button onClick={() => onConfirmar(plataforma)} style={{ flex: 1, padding: '10px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg, #f5c518, #c9a227)', color: '#080808', fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>Marcar como vista</button>
         </div>
       </div>
     </div>
@@ -157,6 +198,7 @@ export default function MisListas({ sesion }: MisListasProps) {
   const [cargando, setCargando] = useState(true)
   const [modalEliminar, setModalEliminar] = useState(null)
   const [modalCalificar, setModalCalificar] = useState(null)
+  const [modalPlataforma, setModalPlataforma] = useState(null)  // { item } al mover a visto
   const [toast, setToast] = useState(null)
 
   const mostrarToast = msg => { setToast(msg); setTimeout(() => setToast(null), 3000) }
@@ -174,7 +216,7 @@ export default function MisListas({ sesion }: MisListasProps) {
         })
         setListas(agrupadas)
       } catch (err) {
-        console.error('Error cargando listas:', err)
+        log.error('Error cargando listas:', err)
       } finally {
         setCargando(false)
       }
@@ -210,18 +252,40 @@ export default function MisListas({ sesion }: MisListasProps) {
     setModalCalificar(null)
   }
 
-  // UPDATE estado (mover entre listas)
+  // UPDATE estado (mover entre listas) — si va a "visto" abre selector de plataforma
   const handleCambiarEstado = async (item, nuevoEstado) => {
+    if (nuevoEstado === 'visto') {
+      // Pedir plataforma antes de confirmar
+      setModalPlataforma(item)
+      return
+    }
+    await ejecutarCambioEstado(item, nuevoEstado)
+  }
+
+  const ejecutarCambioEstado = async (item, nuevoEstado, plataforma = null) => {
     try {
-      await api.put(`/lists/${item.id}`, { estado: nuevoEstado })
+      const body = plataforma ? { estado: nuevoEstado, plataforma } : { estado: nuevoEstado }
+      await api.put(`/lists/${item.id}`, body)
       setListas(prev => ({
         ...prev,
         [tabActual]: prev[tabActual].filter(p => p.id !== item.id),
         [nuevoEstado]: [...prev[nuevoEstado], { ...item, estado: nuevoEstado }]
       }))
       const tab = TABS.find(t => t.key === nuevoEstado)
-      mostrarToast(`Movida a ${tab.label}`)
-    } catch { mostrarToast('Error al mover') }
+      const sufijo = plataforma ? ` y registrada en historial (${plataforma})` : ''
+      mostrarToast(`Movida a ${tab.label}${sufijo}`)
+      log.info('Estado actualizado', { id: item.id, nuevoEstado, plataforma })
+    } catch (err) {
+      log.error('Error al mover entre listas', err)
+      mostrarToast('Error al mover')
+    }
+  }
+
+  const confirmarPlataforma = async (plataforma) => {
+    if (!modalPlataforma) return
+    const item = modalPlataforma
+    setModalPlataforma(null)
+    await ejecutarCambioEstado(item, 'visto', plataforma)
   }
 
   const tabInfo = TABS.find(t => t.key === tabActual)
@@ -323,6 +387,13 @@ export default function MisListas({ sesion }: MisListasProps) {
           pelicula={{ ...modalCalificar, titulo: modalCalificar.pelicula?.titulo }}
           onGuardar={guardarCalificacion}
           onCerrar={() => setModalCalificar(null)}
+        />
+      )}
+      {modalPlataforma && (
+        <ModalPlataforma
+          pelicula={{ titulo: modalPlataforma.pelicula?.titulo || 'esta película' }}
+          onConfirmar={confirmarPlataforma}
+          onCerrar={() => setModalPlataforma(null)}
         />
       )}
 

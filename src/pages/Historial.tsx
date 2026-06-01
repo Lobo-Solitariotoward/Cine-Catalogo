@@ -1,23 +1,28 @@
 import { useState, useEffect } from 'react'
-import { Trash2, Clock, Filter, Loader, Plus, Search, X, Check } from 'lucide-react'
+import { Trash2, Clock, Filter, Loader, Plus, Search, X, Check, RefreshCw } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import api from '../services/api'
 import { buscarPeliculas } from '../services/movieService'
+import log from '../utils/logger'
 
-const PLATAFORMAS = ['Todas', 'Netflix', 'HBO Max', 'Disney+', 'Cine', 'Otro']
+const PLATAFORMAS = ['Todas', 'Netflix', 'Prime Video', 'HBO Max', 'Disney+', 'Apple TV+', 'Cine', 'Otro']
 
-const COLORES_PLATAFORMA = {
+const COLORES_PLATAFORMA: Record<string, string> = {
     Netflix: 'rgba(229,9,20,0.15)',
+    'Prime Video': 'rgba(0,168,225,0.15)',
     'HBO Max': 'rgba(139,92,246,0.15)',
     'Disney+': 'rgba(26,108,255,0.15)',
+    'Apple TV+': 'rgba(255,255,255,0.12)',
     Cine: 'rgba(245,197,24,0.15)',
     Otro: 'rgba(255,255,255,0.08)',
 }
 
-const TEXTO_PLATAFORMA = {
+const TEXTO_PLATAFORMA: Record<string, string> = {
     Netflix: '#e50914',
+    'Prime Video': '#00a8e1',
     'HBO Max': '#8b5cf6',
     'Disney+': '#1a6cff',
+    'Apple TV+': '#e5e5e5',
     Cine: '#f5c518',
     Otro: 'rgba(255,255,255,0.5)',
 }
@@ -160,7 +165,7 @@ function ModalAgregarHistorial({ onAgregar, onCerrar }) {
                             ¿Dónde la viste?
                         </label>
                         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                            {['Netflix', 'HBO Max', 'Disney+', 'Cine', 'Otro'].map(p => (
+                            {['Netflix', 'Prime Video', 'HBO Max', 'Disney+', 'Apple TV+', 'Cine', 'Otro'].map(p => (
                                 <button key={p} onClick={() => setPlataforma(p)}
                                     style={{ padding: '7px 14px', borderRadius: 10, fontSize: 12, fontWeight: 500, border: `1px solid ${plataforma === p ? 'rgba(245,197,24,0.4)' : 'rgba(255,255,255,0.08)'}`, background: plataforma === p ? 'rgba(245,197,24,0.1)' : 'transparent', color: plataforma === p ? '#f5c518' : 'rgba(255,255,255,0.5)', cursor: 'pointer', transition: 'all 0.2s' }}>
                                     {p}
@@ -192,26 +197,47 @@ export default function Historial({ sesion }: HistorialProps) {
     const [historial, setHistorial] = useState([])
     const [filtro, setFiltro] = useState('Todas')
     const [cargando, setCargando] = useState(true)
+    const [sincronizando, setSincronizando] = useState(false)
     const [toast, setToast] = useState(null)
     const [modalAgregar, setModalAgregar] = useState(false)
 
     const mostrarToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 3000) }
 
-    // READ
-    useEffect(() => {
-        const cargar = async () => {
-            if (!sesion?.id) { setCargando(false); return }
-            try {
-                const { data } = await api.get(`/history/${sesion.id}`)
-                setHistorial(data)
-            } catch {
-                setHistorial([])
-            } finally {
-                setCargando(false)
-            }
+    const cargarHistorial = async () => {
+        if (!sesion?.id) { setCargando(false); return }
+        try {
+            const { data } = await api.get(`/history/${sesion.id}`)
+            setHistorial(data)
+            log.info('Historial cargado', { total: data.length })
+        } catch (err) {
+            log.error('Error cargando historial', err)
+            setHistorial([])
+        } finally {
+            setCargando(false)
         }
-        cargar()
-    }, [sesion])
+    }
+
+    // READ
+    useEffect(() => { cargarHistorial() }, [sesion])
+
+    // SYNC desde Mi Lista (películas marcadas como "visto" sin entrada en historial)
+    const sincronizarDesdeListas = async () => {
+        setSincronizando(true)
+        try {
+            const { data } = await api.post('/lists/sync-historial', { plataforma: 'Otro' })
+            if (data.creadas > 0) {
+                await cargarHistorial()
+                mostrarToast(`${data.creadas} película${data.creadas > 1 ? 's' : ''} sincronizada${data.creadas > 1 ? 's' : ''} desde Mi Lista ✓`)
+            } else {
+                mostrarToast('Tu historial ya está al día')
+            }
+        } catch (err) {
+            log.error('Error sincronizando', err)
+            mostrarToast('Error al sincronizar')
+        } finally {
+            setSincronizando(false)
+        }
+    }
 
     // CREATE
     const handleAgregar = async (pelicula, plataforma) => {
@@ -259,15 +285,25 @@ export default function Historial({ sesion }: HistorialProps) {
             <div style={{ width: '100%', maxWidth: 1400, margin: '0 auto', padding: '32px 32px 0' }}>
 
                 {/* Header */}
-                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 28 }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 28, flexWrap: 'wrap', gap: 16 }}>
                     <div>
                         <h1 style={{ fontFamily: 'Clash Display, sans-serif', fontWeight: 700, fontSize: 32, color: 'white', marginBottom: 6 }}>Historial</h1>
-                        <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 14 }}>Películas y series que has visto</p>
+                        <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 14 }}>Películas y series que has visto, agrupadas por plataforma</p>
                     </div>
-                    <button onClick={() => setModalAgregar(true)}
-                        style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'linear-gradient(135deg, #f5c518, #c9a227)', color: '#080808', fontWeight: 700, padding: '11px 20px', borderRadius: 12, border: 'none', cursor: 'pointer', fontSize: 14 }}>
-                        <Plus size={16} /> Agregar
-                    </button>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                        <button onClick={sincronizarDesdeListas} disabled={sincronizando}
+                            title="Importa las películas marcadas como vistas en Mi Lista que aún no están aquí"
+                            style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.7)', fontWeight: 600, padding: '11px 16px', borderRadius: 12, border: '1px solid rgba(255,255,255,0.08)', cursor: sincronizando ? 'wait' : 'pointer', fontSize: 13 }}>
+                            {sincronizando
+                                ? <Loader size={15} style={{ animation: 'spin 1s linear infinite' }} />
+                                : <RefreshCw size={15} />}
+                            Sincronizar Mi Lista
+                        </button>
+                        <button onClick={() => setModalAgregar(true)}
+                            style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'linear-gradient(135deg, #f5c518, #c9a227)', color: '#080808', fontWeight: 700, padding: '11px 20px', borderRadius: 12, border: 'none', cursor: 'pointer', fontSize: 14 }}>
+                            <Plus size={16} /> Agregar
+                        </button>
+                    </div>
                 </div>
 
                 {/* Filtros */}
@@ -304,54 +340,88 @@ export default function Historial({ sesion }: HistorialProps) {
                     </div>
                 )}
 
-                {/* Lista */}
-                {!cargando && resultados.length > 0 && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 720 }}>
-                        {resultados.map(item => {
-                            const titulo = item.pelicula?.titulo || 'Película'
-                            const poster = item.pelicula?.poster_url
-                            const plataforma = item.plataforma || 'Otro'
+                {/* Lista agrupada por plataforma */}
+                {!cargando && resultados.length > 0 && (() => {
+                    // Agrupa por plataforma
+                    const grupos: Record<string, any[]> = {}
+                    resultados.forEach(item => {
+                        const p = item.plataforma || 'Otro'
+                        if (!grupos[p]) grupos[p] = []
+                        grupos[p].push(item)
+                    })
+                    // Orden estable: Netflix, Prime Video, HBO Max, Disney+, Apple TV+, Cine, Otro
+                    const ordenPlataformas = ['Netflix', 'Prime Video', 'HBO Max', 'Disney+', 'Apple TV+', 'Cine', 'Otro']
+                    const plataformasOrdenadas = Object.keys(grupos).sort((a, b) => {
+                        const ia = ordenPlataformas.indexOf(a)
+                        const ib = ordenPlataformas.indexOf(b)
+                        return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib)
+                    })
 
-                            return (
-                                <div key={item.id}
-                                    style={{ display: 'flex', gap: 16, padding: 16, background: '#141414', borderRadius: 16, border: '1px solid rgba(255,255,255,0.06)', transition: 'all 0.2s', alignItems: 'center' }}
-                                    onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'}
-                                    onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'}>
-
-                                    <div style={{ width: 48, height: 68, borderRadius: 10, overflow: 'hidden', background: '#1c1c1c', flexShrink: 0 }}>
-                                        {poster ? (
-                                            <img src={poster} alt={titulo} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                        ) : (
-                                            <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>🎬</div>
-                                        )}
-                                    </div>
-
-                                    <div style={{ flex: 1, minWidth: 0 }}>
-                                        <h3 style={{ color: 'white', fontWeight: 600, fontSize: 15, marginBottom: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                            {titulo}
-                                        </h3>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                                            <span style={{ fontSize: 12, padding: '2px 10px', borderRadius: 999, background: COLORES_PLATAFORMA[plataforma] || COLORES_PLATAFORMA['Otro'], color: TEXTO_PLATAFORMA[plataforma] || TEXTO_PLATAFORMA['Otro'], fontWeight: 600 }}>
+                    return (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 32, maxWidth: 900 }}>
+                            {plataformasOrdenadas.map(plataforma => {
+                                const items = grupos[plataforma]
+                                const colorBg = COLORES_PLATAFORMA[plataforma] || COLORES_PLATAFORMA['Otro']
+                                const colorTexto = TEXTO_PLATAFORMA[plataforma] || TEXTO_PLATAFORMA['Otro']
+                                return (
+                                    <section key={plataforma}>
+                                        {/* Encabezado de plataforma */}
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                                            <span style={{ fontSize: 13, padding: '5px 14px', borderRadius: 999, background: colorBg, color: colorTexto, fontWeight: 700, border: `1px solid ${colorTexto}30` }}>
                                                 {plataforma}
                                             </span>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'rgba(255,255,255,0.35)', fontSize: 12 }}>
-                                                <Clock size={11} />
-                                                {formatFecha(item.visto_en || item.creado_en)}
-                                            </div>
+                                            <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: 13 }}>
+                                                {items.length} {items.length === 1 ? 'película' : 'películas'}
+                                            </span>
+                                            <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.05)', marginLeft: 8 }} />
                                         </div>
-                                    </div>
 
-                                    <button onClick={() => handleEliminar(item.id, titulo)}
-                                        style={{ width: 36, height: 36, borderRadius: 10, background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.3)', flexShrink: 0, transition: 'all 0.2s' }}
-                                        onMouseEnter={e => { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.borderColor = 'rgba(239,68,68,0.3)'; e.currentTarget.style.background = 'rgba(239,68,68,0.08)' }}
-                                        onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.3)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; e.currentTarget.style.background = 'transparent' }}>
-                                        <Trash2 size={15} />
-                                    </button>
-                                </div>
-                            )
-                        })}
-                    </div>
-                )}
+                                        {/* Películas de esta plataforma */}
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                            {items.map(item => {
+                                                const titulo = item.pelicula?.titulo || 'Película'
+                                                const poster = item.pelicula?.poster_url
+
+                                                return (
+                                                    <div key={item.id}
+                                                        style={{ display: 'flex', gap: 16, padding: 16, background: '#141414', borderRadius: 16, border: '1px solid rgba(255,255,255,0.06)', transition: 'all 0.2s', alignItems: 'center' }}
+                                                        onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'}
+                                                        onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'}>
+
+                                                        <div style={{ width: 48, height: 68, borderRadius: 10, overflow: 'hidden', background: '#1c1c1c', flexShrink: 0 }}>
+                                                            {poster ? (
+                                                                <img src={poster} alt={titulo} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                            ) : (
+                                                                <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>🎬</div>
+                                                            )}
+                                                        </div>
+
+                                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                                            <h3 style={{ color: 'white', fontWeight: 600, fontSize: 15, marginBottom: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                                {titulo}
+                                                            </h3>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'rgba(255,255,255,0.35)', fontSize: 12 }}>
+                                                                <Clock size={11} />
+                                                                {formatFecha(item.visto_en || item.creado_en)}
+                                                            </div>
+                                                        </div>
+
+                                                        <button onClick={() => handleEliminar(item.id, titulo)}
+                                                            style={{ width: 36, height: 36, borderRadius: 10, background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.3)', flexShrink: 0, transition: 'all 0.2s' }}
+                                                            onMouseEnter={e => { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.borderColor = 'rgba(239,68,68,0.3)'; e.currentTarget.style.background = 'rgba(239,68,68,0.08)' }}
+                                                            onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.3)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; e.currentTarget.style.background = 'transparent' }}>
+                                                            <Trash2 size={15} />
+                                                        </button>
+                                                    </div>
+                                                )
+                                            })}
+                                        </div>
+                                    </section>
+                                )
+                            })}
+                        </div>
+                    )
+                })()}
             </div>
 
             {modalAgregar && (

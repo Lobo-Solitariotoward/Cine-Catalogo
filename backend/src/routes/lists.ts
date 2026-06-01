@@ -1,10 +1,21 @@
 import express, { Response } from 'express'
 import ListaUsuario from '../models/mysql/ListaUsuario'
 import PeliculaSerie from '../models/mysql/PeliculaSerie'
+import Historial from '../models/mysql/Historial'
 import { verificarToken, AuthRequest } from '../middlewares/auth'
 import { logActivity } from '../utils/logActivity'
 
 const router = express.Router()
+
+/**
+ * Crea una entrada en Historial si no existe ya una para esta peli/usuario.
+ * Se llama cuando una película pasa a estado "visto" en Mi Lista.
+ */
+const asegurarHistorial = async (usuario_id: number, pelicula_id: number, plataforma: string = 'Otro') => {
+    const ya = await Historial.findOne({ where: { usuario_id, pelicula_id } })
+    if (ya) return ya
+    return Historial.create({ usuario_id, pelicula_id, plataforma })
+}
 
 router.get('/:userId', verificarToken, async (req: AuthRequest, res: Response) => {
     try {
@@ -60,9 +71,55 @@ router.put('/:id', verificarToken, async (req: AuthRequest, res: Response) => {
             estado_anterior: estadoAnterior,
             estado_nuevo: req.body.estado
         })
+
+        // Si la película pasa a "visto", crear entrada en historial con la plataforma elegida
+        if (req.body.estado === 'visto' && estadoAnterior !== 'visto') {
+            const plataforma = req.body.plataforma || 'Otro'
+            await asegurarHistorial(req.usuario.id, lista.pelicula_id, plataforma)
+            logActivity(req.usuario.id, 'historial_agregar', {
+                pelicula_id: lista.pelicula_id,
+                titulo: pelicula?.titulo,
+                plataforma,
+                origen: 'mi_lista'
+            })
+        }
+
         res.json(lista)
     } catch (error: any) {
         res.status(500).json({ error: 'Error al actualizar lista', detalle: error.message })
+    }
+})
+
+/**
+ * POST /api/lists/sync-historial
+ * Crea entradas en Historial para todas las películas marcadas como "visto"
+ * en Mi Lista que aún no tengan entrada en Historial. Útil para backfill.
+ */
+router.post('/sync-historial', verificarToken, async (req: AuthRequest, res: Response) => {
+    try {
+        const plataforma = req.body.plataforma || 'Otro'
+        const vistos = await ListaUsuario.findAll({
+            where: { usuario_id: req.usuario.id, estado: 'visto' }
+        })
+
+        let creadas = 0
+        for (const item of vistos) {
+            const yaExiste = await Historial.findOne({
+                where: { usuario_id: req.usuario.id, pelicula_id: item.pelicula_id }
+            })
+            if (!yaExiste) {
+                await Historial.create({
+                    usuario_id: req.usuario.id,
+                    pelicula_id: item.pelicula_id,
+                    plataforma
+                })
+                creadas++
+            }
+        }
+
+        res.json({ creadas, total_vistos: vistos.length })
+    } catch (error: any) {
+        res.status(500).json({ error: 'Error al sincronizar', detalle: error.message })
     }
 })
 

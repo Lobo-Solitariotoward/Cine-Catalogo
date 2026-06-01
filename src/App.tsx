@@ -10,6 +10,10 @@ import Perfil from './pages/Perfil'
 import Login from './pages/Login'
 import Registro from './pages/Registro'
 import DetallePelicula from './pages/DetallePelicula'
+import Notificaciones from './pages/Notificaciones'
+import MisResenas from './pages/MisResenas'
+import Recomendaciones from './pages/Recomendaciones'
+import InfoPage from './pages/InfoPage'
 
 interface Sesion {
   id: number
@@ -65,8 +69,15 @@ export default function App() {
           <Route path="/buscar" element={<Buscar />} />
           <Route path="/mis-listas" element={<MisListas sesion={sesion} />} />
           <Route path="/historial" element={<Historial sesion={sesion} />} />
-          <Route path="/perfil" element={<Perfil sesion={sesion} />} />
+          <Route path="/perfil" element={<Perfil sesion={sesion} onLogout={logout} />} />
           <Route path="/detalle/:imdbId" element={<DetallePelicula sesion={sesion} />} />
+          <Route path="/notificaciones" element={<Notificaciones sesion={sesion} />} />
+          <Route path="/mis-resenas" element={<MisResenas sesion={sesion} />} />
+          <Route path="/recomendaciones" element={<Recomendaciones sesion={sesion} />} />
+          <Route path="/acerca" element={<InfoPage tipo="acerca" />} />
+          <Route path="/privacidad" element={<InfoPage tipo="privacidad" />} />
+          <Route path="/terminos" element={<InfoPage tipo="terminos" />} />
+          <Route path="/contacto" element={<InfoPage tipo="contacto" />} />
         </Route>
       </Routes>
     </BrowserRouter>

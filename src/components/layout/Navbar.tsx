@@ -1,18 +1,14 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useState, useEffect, useRef } from 'react'
 import { Search, Bell, ChevronDown, X, Film, LogOut, User, Settings, Bookmark, Clock } from 'lucide-react'
+import { obtenerNotificaciones, marcarComoLeida, tiempoRelativo, Notificacion } from '../../services/notificationService'
+import log from '../../utils/logger'
 
 const NAV_LINKS = [
     { to: '/inicio', label: 'Inicio' },
     { to: '/buscar', label: 'Películas' },
     { to: '/mis-listas', label: 'Mi Lista' },
     { to: '/historial', label: 'Historial' },
-]
-
-const MOCK_NOTIFICACIONES = [
-    { id: 1, tipo: 'recomendacion', msg: 'Nueva recomendación: Oppenheimer', tiempo: '2m', leida: false },
-    { id: 2, tipo: 'like', msg: 'A alguien le gustó tu reseña de Inception', tiempo: '1h', leida: false },
-    { id: 3, tipo: 'sistema', msg: 'Bienvenido a CineLog 🎬', tiempo: '2d', leida: true },
 ]
 
 interface NavbarProps {
@@ -28,7 +24,7 @@ export default function Navbar({ sesion, onLogout }: NavbarProps) {
     const [searchQuery, setSearchQuery] = useState('')
     const [menuUsuario, setMenuUsuario] = useState(false)
     const [menuNotif, setMenuNotif] = useState(false)
-    const [notifs, setNotifs] = useState(MOCK_NOTIFICACIONES)
+    const [notifs, setNotifs] = useState<Notificacion[]>([])
     const menuRef = useRef<HTMLDivElement>(null)
     const notifRef = useRef<HTMLDivElement>(null)
 
@@ -39,6 +35,17 @@ export default function Navbar({ sesion, onLogout }: NavbarProps) {
         window.addEventListener('scroll', onScroll)
         return () => window.removeEventListener('scroll', onScroll)
     }, [])
+
+    // Cargar notificaciones reales del usuario
+    useEffect(() => {
+        if (!sesion?.id) return
+        obtenerNotificaciones(sesion.id)
+            .then(data => {
+                setNotifs(data)
+                log.info('Notificaciones cargadas', { total: data.length, sinLeer: data.filter(n => !n.leida).length })
+            })
+            .catch(err => log.error('Error cargando notificaciones', err))
+    }, [sesion])
 
     // Cerrar dropdowns al click fuera
     useEffect(() => {
@@ -65,8 +72,14 @@ export default function Navbar({ sesion, onLogout }: NavbarProps) {
         navigate('/login')
     }
 
-    const marcarTodasLeidas = () => {
-        setNotifs(prev => prev.map(n => ({ ...n, leida: true })))
+    const marcarTodasLeidas = async () => {
+        const noLeidas = notifs.filter(n => !n.leida)
+        setNotifs(prev => prev.map(n => ({ ...n, leida: true })))  // optimista
+        try {
+            await Promise.all(noLeidas.map(n => marcarComoLeida(n.id)))
+        } catch (err) {
+            log.warn('No se pudieron marcar todas las notificaciones como leídas', err)
+        }
     }
 
     return (
@@ -182,7 +195,11 @@ export default function Navbar({ sesion, onLogout }: NavbarProps) {
                                         )}
                                     </div>
                                     <div className="max-h-72 overflow-y-auto">
-                                        {notifs.map(n => (
+                                        {notifs.length === 0 ? (
+                                            <p className="text-center text-xs py-8" style={{ color: 'rgba(255,255,255,0.3)' }}>
+                                                Sin notificaciones por ahora
+                                            </p>
+                                        ) : notifs.slice(0, 6).map(n => (
                                             <div key={n.id} className="flex items-start gap-3 px-4 py-3 transition-colors cursor-pointer"
                                                 style={{ background: n.leida ? 'transparent' : 'rgba(0,212,255,0.03)' }}
                                                 onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.04)'}
@@ -191,9 +208,9 @@ export default function Navbar({ sesion, onLogout }: NavbarProps) {
                                                     style={{ background: n.leida ? 'transparent' : '#00d4ff', boxShadow: n.leida ? 'none' : '0 0 6px #00d4ff' }} />
                                                 <div className="flex-1 min-w-0">
                                                     <p className="text-sm" style={{ color: n.leida ? 'rgba(255,255,255,0.5)' : 'white' }}>
-                                                        {n.msg}
+                                                        {n.mensaje}
                                                     </p>
-                                                    <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.3)' }}>{n.tiempo}</p>
+                                                    <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.3)' }}>{tiempoRelativo(n.creado_en)}</p>
                                                 </div>
                                             </div>
                                         ))}
