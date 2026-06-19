@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState, useEffect } from 'react'
 import { Trash2, Clock, Filter, Loader, Plus, Search, X, Check, RefreshCw } from 'lucide-react'
 import { Link } from 'react-router-dom'

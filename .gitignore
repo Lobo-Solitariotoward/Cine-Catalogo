@@ -10,9 +10,15 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+coverage
+playwright-report
+test-results
+*.tsbuildinfo
 *.local
+vite.config.js
+vite.config.d.ts
 
-# Editor directories and files
+# Editor directories and filess
 .vscode/*
 !.vscode/extensions.json
 .idea

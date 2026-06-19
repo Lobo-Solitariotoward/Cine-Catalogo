@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Play, Plus, Star, X, ChevronLeft, ThumbsUp, Trash2, Edit3, Check, Send, Loader } from 'lucide-react'

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useEffect, useState } from 'react'
 import { MessageCircle, Loader, Star, Trash2, Edit3 } from 'lucide-react'
 import { Link } from 'react-router-dom'

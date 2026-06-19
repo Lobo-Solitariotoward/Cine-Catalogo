@@ -8,6 +8,6 @@ export const conectarMongo = async () => {
         console.log('✅ MongoDB conectado correctamente')
     } catch (error) {
         console.error('❌ Error conectando a MongoDB:', error)
-        process.exit(1)
+        // No se detiene el servidor — MySQL sigue funcionando
     }
 }

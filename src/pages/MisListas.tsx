@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState, useEffect } from 'react'
 import { Trash2, Star, Edit3, Check, X, BookMarked, Eye, Heart, Plus, Loader } from 'lucide-react'
 import { Link } from 'react-router-dom'

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState, useRef, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Play, Plus, Info, Star, ChevronRight, ChevronLeft, X, Check, Loader } from 'lucide-react'

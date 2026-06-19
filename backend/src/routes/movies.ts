@@ -22,12 +22,11 @@ router.get('/search', verificarToken, async (req: AuthRequest, res: Response) =>
 
         res.json({ resultados: response.data.Search || [] })
     } catch (error: any) {
-        res.status(500).json({ error: 'Error al buscar películas', detalle: error.message })
+        res.status(500).json({ error: 'Error al buscar películas' })
     }
 })
 
 // GET /api/movies/trailer?q=titulo+pelicula
-// Busca el ID real del video en YouTube sin necesitar API key
 router.get('/trailer', verificarToken, async (req: AuthRequest, res: Response) => {
     try {
         const { q } = req.query as { q?: string }
@@ -42,19 +41,16 @@ router.get('/trailer', verificarToken, async (req: AuthRequest, res: Response) =
             timeout: 8000
         })
 
-        // YouTube embeds los video IDs en el HTML como "videoId":"XXXXXXXXXXX"
         const matches = data.match(/"videoId":"([a-zA-Z0-9_-]{11})"/g) || []
         const ids = matches.map((m: string) => m.replace('"videoId":"', '').replace('"', ''))
-        // Deduplica y se queda con los 8 primeros como candidatos
         const uniqueIds = [...new Set<string>(ids)].slice(0, 8)
 
         if (uniqueIds.length === 0)
             return res.status(404).json({ error: 'No se encontró tráiler' })
 
-        // Devuelve array de candidatos + videoId (el primero) para retrocompatibilidad
         res.json({ videoIds: uniqueIds, videoId: uniqueIds[0] })
     } catch (error: any) {
-        res.status(500).json({ error: 'Error al buscar tráiler', detalle: error.message })
+        res.status(500).json({ error: 'Error al buscar tráiler' })
     }
 })
 
@@ -65,15 +61,16 @@ router.get('/mysql/:imdbId', verificarToken, async (req: AuthRequest, res: Respo
         if (!pelicula) return res.status(404).json({ error: 'Película no encontrada en MySQL' })
         res.json(pelicula)
     } catch (error: any) {
-        res.status(500).json({ error: 'Error al obtener película', detalle: error.message })
+        res.status(500).json({ error: 'Error al obtener película' })
     }
 })
 
-// GET /api/movies/:imdbId — detalle completo (MongoDB + OMDb)
+// GET /api/movies/:imdbId — detalle completo (MongoDB + OMDb + MySQL cache)
 router.get('/:imdbId', verificarToken, async (req: AuthRequest, res: Response) => {
     try {
         const { imdbId } = req.params
         let detalle = await MovieDetail.findOne({ imdb_id: imdbId })
+        let omdbData: any = null
 
         if (!detalle) {
             const response = await axios.get('https://www.omdbapi.com/', {
@@ -82,35 +79,42 @@ router.get('/:imdbId', verificarToken, async (req: AuthRequest, res: Response) =
             if (response.data.Response === 'False')
                 return res.status(404).json({ error: 'Película no encontrada' })
 
-            const data = response.data
+            omdbData = response.data
             detalle = await MovieDetail.create({
                 imdb_id: imdbId,
-                titulo: data.Title,
-                sinopsis: data.Plot,
-                director: data.Director,
-                reparto: data.Actors?.split(', ') || [],
-                duracion: data.Runtime,
-                idioma: data.Language,
-                pais: data.Country,
-                premios: data.Awards,
-                tags: data.Genre?.split(', ') || [],
+                titulo: omdbData.Title,
+                sinopsis: omdbData.Plot,
+                director: omdbData.Director,
+                reparto: omdbData.Actors?.split(', ') || [],
+                duracion: omdbData.Runtime,
+                idioma: omdbData.Language,
+                pais: omdbData.Country,
+                premios: omdbData.Awards,
+                tags: omdbData.Genre?.split(', ') || [],
             })
+        }
 
-            await PeliculaSerie.findOrCreate({
-                where: { imdb_id: imdbId },
-                defaults: {
-                    titulo: data.Title,
-                    tipo: data.Type === 'series' ? 'serie' : 'pelicula',
-                    anio: parseInt(data.Year) || null,
-                    calificacion_imdb: parseFloat(data.imdbRating) || null,
-                    poster_url: data.Poster !== 'N/A' ? data.Poster : null,
-                }
+        const existente = await PeliculaSerie.findOne({ where: { imdb_id: imdbId } })
+        if (!existente) {
+            if (!omdbData) {
+                const response = await axios.get('https://www.omdbapi.com/', {
+                    params: { i: imdbId, apikey: process.env.OMDB_KEY }
+                })
+                if (response.data.Response !== 'False') omdbData = response.data
+            }
+            await PeliculaSerie.create({
+                imdb_id: imdbId,
+                titulo: omdbData?.Title || detalle.titulo,
+                tipo: omdbData?.Type === 'series' ? 'serie' : 'pelicula',
+                anio: omdbData ? (parseInt(omdbData.Year) || null) : null,
+                calificacion_imdb: omdbData ? (parseFloat(omdbData.imdbRating) || null) : null,
+                poster_url: omdbData?.Poster && omdbData.Poster !== 'N/A' ? omdbData.Poster : null,
             })
         }
 
         res.json(detalle)
     } catch (error: any) {
-        res.status(500).json({ error: 'Error al obtener película', detalle: error.message })
+        res.status(500).json({ error: 'Error al obtener película' })
     }
 })
 

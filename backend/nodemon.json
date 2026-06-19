@@ -2,5 +2,5 @@
   "watch": ["src"],
   "ext": "ts",
   "ignore": ["src/**/*.js"],
-  "exec": "ts-node --prefer-ts-exts src/app.ts"
+  "exec": "ts-node --prefer-ts-exts src/server.ts"
 }

@@ -8,8 +8,11 @@ const router = express.Router()
 
 router.get('/:userId', verificarToken, async (req: AuthRequest, res: Response) => {
     try {
+        if (Number.parseInt(req.params.userId, 10) !== req.usuario!.id) {
+            return res.status(403).json({ error: 'Sin permiso' })
+        }
         const historial = await Historial.findAll({
-            where: { usuario_id: req.params.userId },
+            where: { usuario_id: req.usuario!.id },
             include: [{ model: PeliculaSerie, as: 'pelicula' }],
             order: [['visto_en', 'DESC']]
         })
@@ -22,12 +25,12 @@ router.get('/:userId', verificarToken, async (req: AuthRequest, res: Response) =
 router.post('/', verificarToken, async (req: AuthRequest, res: Response) => {
     try {
         const entrada = await Historial.create({
-            usuario_id: req.usuario.id,
+            usuario_id: req.usuario!.id,
             pelicula_id: req.body.pelicula_id,
             plataforma: req.body.plataforma
         })
         const pelicula = await PeliculaSerie.findByPk(req.body.pelicula_id)
-        logActivity(req.usuario.id, 'historial_agregar', {
+        logActivity(req.usuario!.id, 'historial_agregar', {
             pelicula_id: req.body.pelicula_id,
             titulo: pelicula?.titulo,
             plataforma: req.body.plataforma
@@ -41,10 +44,12 @@ router.post('/', verificarToken, async (req: AuthRequest, res: Response) => {
 router.delete('/:id', verificarToken, async (req: AuthRequest, res: Response) => {
     try {
         const entrada = await Historial.findByPk(req.params.id)
+        if (!entrada) return res.status(404).json({ error: 'Entrada no encontrada' })
+        if (entrada.usuario_id !== req.usuario!.id) return res.status(403).json({ error: 'Sin permiso' })
         const pelicula = entrada ? await PeliculaSerie.findByPk(entrada.pelicula_id) : null
         await Historial.destroy({ where: { id: req.params.id } })
         if (entrada) {
-            logActivity(req.usuario.id, 'historial_eliminar', {
+            logActivity(req.usuario!.id, 'historial_eliminar', {
                 pelicula_id: entrada.pelicula_id,
                 titulo: pelicula?.titulo
             })

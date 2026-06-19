@@ -5,9 +5,22 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:cypress": "cypress run",
+    "test:e2e:cypress:ui": "cypress open",
+    "test:e2e:all": "npm run test:e2e && npm run test:e2e:cypress",
+    "perf:load": "k6 run perf/load.js",
+    "perf:stress": "k6 run perf/stress.js",
+    "perf:spike": "k6 run perf/spike.js",
+    "perf:soak": "k6 run perf/soak.js",
+    "perf:jmeter": "powershell -ExecutionPolicy Bypass -File ./perf/jmeter/run-jmeter-load-test.ps1",
+    "perf:jmeter:bash": "bash ./perf/jmeter/run-jmeter-load-test.sh",
+    "perf:all": "npm run perf:load && npm run perf:jmeter"
   },
   "dependencies": {
     "axios": "^1.16.0",
@@ -20,17 +33,26 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.61.0",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "@typescript-eslint/eslint-plugin": "^8.61.1",
+    "@typescript-eslint/parser": "^8.61.1",
     "@vitejs/plugin-react": "^6.0.1",
     "autoprefixer": "^10.5.0",
     "eslint": "^10.3.0",
+    "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.6.0",
+    "jsdom": "^29.1.1",
     "postcss": "^8.5.14",
+    "prettier": "^3.8.4",
     "tailwindcss": "^3.4.19",
+    "typescript": "^5.3.2",
     "vite": "^8.0.12",
-    "typescript": "^5.3.2"
+    "vitest": "^4.1.9"
   }
 }

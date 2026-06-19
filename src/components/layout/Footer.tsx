@@ -23,12 +23,16 @@ export default function Footer() {
                             Tu catálogo personal de películas y series. Organiza, califica y descubre nuevo contenido.
                         </p>
                         <div className="flex gap-2 mt-5">
-                            {['𝕏', '📷', '🎬'].map((icon, i) => (
-                                <button key={i} className="w-9 h-9 rounded-xl flex items-center justify-center text-sm transition-all"
+                            {[
+                                { icon: '𝕏', label: 'Síguenos en X' },
+                                { icon: '📷', label: 'Síguenos en Instagram' },
+                                { icon: '🎬', label: 'Síguenos en TikTok' },
+                            ].map((item, i) => (
+                                <button key={i} aria-label={item.label} className="w-9 h-9 rounded-xl flex items-center justify-center text-sm transition-all"
                                     style={{ background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.4)' }}
                                     onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,212,255,0.1)'; e.currentTarget.style.color = '#00d4ff' }}
                                     onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = 'rgba(255,255,255,0.4)' }}>
-                                    {icon}
+                                    {item.icon}
                                 </button>
                             ))}
                         </div>

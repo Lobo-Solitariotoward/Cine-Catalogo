@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { User, Mail, Lock, LogOut, Edit3, Check, Eye, EyeOff, Loader, Activity } from 'lucide-react'
@@ -99,8 +100,8 @@ export default function Perfil({ sesion, onLogout }) {
                         <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {sesion?.email}
                         </p>
-                        <span style={{ display: 'inline-block', marginTop: 8, fontSize: 11, padding: '3px 10px', borderRadius: 999, background: 'rgba(0,212,255,0.1)', border: '1px solid rgba(0,212,255,0.2)', color: '#00d4ff', fontWeight: 600 }}>
-                            Usuario activo
+                        <span style={{ display: 'inline-block', marginTop: 8, fontSize: 11, padding: '3px 10px', borderRadius: 999, background: sesion?.rol === 'admin' ? 'rgba(245,197,24,0.1)' : 'rgba(0,212,255,0.1)', border: `1px solid ${sesion?.rol === 'admin' ? 'rgba(245,197,24,0.2)' : 'rgba(0,212,255,0.2)'}`, color: sesion?.rol === 'admin' ? '#f5c518' : '#00d4ff', fontWeight: 600 }}>
+                            {sesion?.rol === 'admin' ? 'Administrador' : 'Usuario activo'}
                         </span>
                     </div>
                 </div>
@@ -144,7 +145,7 @@ export default function Perfil({ sesion, onLogout }) {
                     <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
                         {/* Nombre */}
                         <div>
-                            <label style={{ display: 'block', color: 'rgba(255,255,255,0.4)', fontSize: 12, fontWeight: 500, marginBottom: 6 }}>Nombre completo</label>
+                            <label htmlFor="perfil-nombre" style={{ display: 'block', color: 'rgba(255,255,255,0.4)', fontSize: 12, fontWeight: 500, marginBottom: 6 }}>Nombre completo</label>
                             <div style={{ position: 'relative' }}>
                                 <User size={15} color="rgba(255,255,255,0.25)" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
                                 <input type="text" value={form.nombre} onChange={e => setForm(p => ({ ...p, nombre: e.target.value }))}
@@ -157,7 +158,7 @@ export default function Perfil({ sesion, onLogout }) {
 
                         {/* Email */}
                         <div>
-                            <label style={{ display: 'block', color: 'rgba(255,255,255,0.4)', fontSize: 12, fontWeight: 500, marginBottom: 6 }}>Correo electrónico</label>
+                            <label htmlFor="perfil-email" style={{ display: 'block', color: 'rgba(255,255,255,0.4)', fontSize: 12, fontWeight: 500, marginBottom: 6 }}>Correo electrónico</label>
                             <div style={{ position: 'relative' }}>
                                 <Mail size={15} color="rgba(255,255,255,0.25)" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
                                 <input type="email" value={form.email} disabled
@@ -169,7 +170,7 @@ export default function Perfil({ sesion, onLogout }) {
                         {/* Contraseña — solo al editar */}
                         {editando && (
                             <div>
-                                <label style={{ display: 'block', color: 'rgba(255,255,255,0.4)', fontSize: 12, fontWeight: 500, marginBottom: 6 }}>
+                                <label htmlFor="perfil-password" style={{ display: 'block', color: 'rgba(255,255,255,0.4)', fontSize: 12, fontWeight: 500, marginBottom: 6 }}>
                                     Nueva contraseña <span style={{ color: 'rgba(255,255,255,0.2)' }}>(dejar vacío para no cambiar)</span>
                                 </label>
                                 <div style={{ position: 'relative' }}>

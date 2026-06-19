@@ -14,12 +14,15 @@ import Notificaciones from './pages/Notificaciones'
 import MisResenas from './pages/MisResenas'
 import Recomendaciones from './pages/Recomendaciones'
 import InfoPage from './pages/InfoPage'
+import RecuperarContrasena from './pages/RecuperarContrasena'
+import ResetContrasena from './pages/ResetContrasena'
 
 interface Sesion {
   id: number
   nombre: string
   email: string
   avatar: string
+  rol: 'admin' | 'user'
 }
 
 interface RutaProtegidaProps {
@@ -60,6 +63,8 @@ export default function App() {
         <Route path="/" element={sesion ? <Navigate to="/inicio" replace /> : <Navigate to="/login" replace />} />
         <Route path="/login" element={sesion ? <Navigate to="/inicio" replace /> : <Login onLogin={login} />} />
         <Route path="/registro" element={sesion ? <Navigate to="/inicio" replace /> : <Registro onLogin={login} />} />
+        <Route path="/recuperar-contrasena" element={<RecuperarContrasena />} />
+        <Route path="/reset-contrasena" element={<ResetContrasena />} />
         <Route element={
           <RutaProtegida sesion={sesion}>
             <Layout sesion={sesion} onLogout={logout} />

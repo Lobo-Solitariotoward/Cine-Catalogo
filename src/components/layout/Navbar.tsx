@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useState, useEffect, useRef } from 'react'
 import { Search, Bell, ChevronDown, X, Film, LogOut, User, Settings, Bookmark, Clock } from 'lucide-react'

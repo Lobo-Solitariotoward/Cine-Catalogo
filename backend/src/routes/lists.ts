@@ -19,20 +19,23 @@ const asegurarHistorial = async (usuario_id: number, pelicula_id: number, plataf
 
 router.get('/:userId', verificarToken, async (req: AuthRequest, res: Response) => {
     try {
+        if (Number.parseInt(req.params.userId, 10) !== req.usuario!.id) {
+            return res.status(403).json({ error: 'Sin permiso' })
+        }
         const listas = await ListaUsuario.findAll({
-            where: { usuario_id: req.params.userId },
+            where: { usuario_id: req.usuario!.id },
             include: [{ model: PeliculaSerie, as: 'pelicula' }]
         })
         res.json(listas)
     } catch (error: any) {
-        res.status(500).json({ error: 'Error al obtener listas', detalle: error.message })
+        res.status(500).json({ error: 'Error al obtener listas' })
     }
 })
 
 router.post('/', verificarToken, async (req: AuthRequest, res: Response) => {
     try {
         const { pelicula_id, estado } = req.body
-        const usuario_id = req.usuario.id
+        const usuario_id = req.usuario!.id
         if (!pelicula_id) return res.status(400).json({ error: 'pelicula_id requerido' })
 
         const pelicula = await PeliculaSerie.findByPk(pelicula_id)
@@ -52,7 +55,7 @@ router.post('/', verificarToken, async (req: AuthRequest, res: Response) => {
         logActivity(usuario_id, 'lista_agregar', { pelicula_id, titulo, estado: estado || 'por_ver' })
         res.status(201).json(lista)
     } catch (error: any) {
-        res.status(500).json({ error: 'Error al agregar a lista', detalle: error.message })
+        res.status(500).json({ error: 'Error al agregar a lista' })
     }
 })
 
@@ -60,12 +63,12 @@ router.put('/:id', verificarToken, async (req: AuthRequest, res: Response) => {
     try {
         const lista = await ListaUsuario.findByPk(req.params.id)
         if (!lista) return res.status(404).json({ error: 'Entrada no encontrada' })
-        if (lista.usuario_id !== req.usuario.id) return res.status(403).json({ error: 'Sin permiso' })
+        if (lista.usuario_id !== req.usuario!.id) return res.status(403).json({ error: 'Sin permiso' })
 
         const estadoAnterior = lista.estado
         await lista.update({ estado: req.body.estado, calificacion: req.body.calificacion })
         const pelicula = await PeliculaSerie.findByPk(lista.pelicula_id)
-        logActivity(req.usuario.id, 'lista_actualizar', {
+        logActivity(req.usuario!.id, 'lista_actualizar', {
             pelicula_id: lista.pelicula_id,
             titulo: pelicula?.titulo,
             estado_anterior: estadoAnterior,
@@ -75,8 +78,8 @@ router.put('/:id', verificarToken, async (req: AuthRequest, res: Response) => {
         // Si la película pasa a "visto", crear entrada en historial con la plataforma elegida
         if (req.body.estado === 'visto' && estadoAnterior !== 'visto') {
             const plataforma = req.body.plataforma || 'Otro'
-            await asegurarHistorial(req.usuario.id, lista.pelicula_id, plataforma)
-            logActivity(req.usuario.id, 'historial_agregar', {
+            await asegurarHistorial(req.usuario!.id, lista.pelicula_id, plataforma)
+            logActivity(req.usuario!.id, 'historial_agregar', {
                 pelicula_id: lista.pelicula_id,
                 titulo: pelicula?.titulo,
                 plataforma,
@@ -86,7 +89,7 @@ router.put('/:id', verificarToken, async (req: AuthRequest, res: Response) => {
 
         res.json(lista)
     } catch (error: any) {
-        res.status(500).json({ error: 'Error al actualizar lista', detalle: error.message })
+        res.status(500).json({ error: 'Error al actualizar lista' })
     }
 })
 
@@ -99,17 +102,17 @@ router.post('/sync-historial', verificarToken, async (req: AuthRequest, res: Res
     try {
         const plataforma = req.body.plataforma || 'Otro'
         const vistos = await ListaUsuario.findAll({
-            where: { usuario_id: req.usuario.id, estado: 'visto' }
+            where: { usuario_id: req.usuario!.id, estado: 'visto' }
         })
 
         let creadas = 0
         for (const item of vistos) {
             const yaExiste = await Historial.findOne({
-                where: { usuario_id: req.usuario.id, pelicula_id: item.pelicula_id }
+                where: { usuario_id: req.usuario!.id, pelicula_id: item.pelicula_id }
             })
             if (!yaExiste) {
                 await Historial.create({
-                    usuario_id: req.usuario.id,
+                    usuario_id: req.usuario!.id,
                     pelicula_id: item.pelicula_id,
                     plataforma
                 })
@@ -119,7 +122,7 @@ router.post('/sync-historial', verificarToken, async (req: AuthRequest, res: Res
 
         res.json({ creadas, total_vistos: vistos.length })
     } catch (error: any) {
-        res.status(500).json({ error: 'Error al sincronizar', detalle: error.message })
+        res.status(500).json({ error: 'Error al sincronizar' })
     }
 })
 
@@ -127,14 +130,14 @@ router.delete('/:id', verificarToken, async (req: AuthRequest, res: Response) =>
     try {
         const lista = await ListaUsuario.findByPk(req.params.id)
         if (!lista) return res.status(404).json({ error: 'Entrada no encontrada' })
-        if (lista.usuario_id !== req.usuario.id) return res.status(403).json({ error: 'Sin permiso' })
+        if (lista.usuario_id !== req.usuario!.id) return res.status(403).json({ error: 'Sin permiso' })
 
         const pelicula = await PeliculaSerie.findByPk(lista.pelicula_id)
         await lista.destroy()
-        logActivity(req.usuario.id, 'lista_eliminar', { pelicula_id: lista.pelicula_id, titulo: pelicula?.titulo })
+        logActivity(req.usuario!.id, 'lista_eliminar', { pelicula_id: lista.pelicula_id, titulo: pelicula?.titulo })
         res.json({ mensaje: 'Eliminado correctamente' })
     } catch (error: any) {
-        res.status(500).json({ error: 'Error al eliminar de lista', detalle: error.message })
+        res.status(500).json({ error: 'Error al eliminar de lista' })
     }
 })
 

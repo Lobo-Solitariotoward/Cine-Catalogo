@@ -6,8 +6,11 @@ const router = express.Router()
 
 router.get('/:userId', verificarToken, async (req: AuthRequest, res: Response) => {
     try {
+        if (Number.parseInt(req.params.userId, 10) !== req.usuario!.id) {
+            return res.status(403).json({ error: 'Sin permiso' })
+        }
         const notifs = await Notificacion.findAll({
-            where: { usuario_id: req.params.userId },
+            where: { usuario_id: req.usuario!.id },
             order: [['creado_en', 'DESC']]
         })
         res.json(notifs)
@@ -18,7 +21,7 @@ router.get('/:userId', verificarToken, async (req: AuthRequest, res: Response) =
 
 router.put('/:id', verificarToken, async (req: AuthRequest, res: Response) => {
     try {
-        await Notificacion.update({ leida: true }, { where: { id: req.params.id } })
+        await Notificacion.update({ leida: true }, { where: { id: req.params.id, usuario_id: req.usuario!.id } })
         res.json({ mensaje: 'Notificación marcada como leída' })
     } catch (error: any) {
         res.status(500).json({ error: 'Error al actualizar notificación' })
@@ -27,7 +30,7 @@ router.put('/:id', verificarToken, async (req: AuthRequest, res: Response) => {
 
 router.delete('/:id', verificarToken, async (req: AuthRequest, res: Response) => {
     try {
-        await Notificacion.destroy({ where: { id: req.params.id } })
+        await Notificacion.destroy({ where: { id: req.params.id, usuario_id: req.usuario!.id } })
         res.json({ mensaje: 'Notificación eliminada' })
     } catch (error: any) {
         res.status(500).json({ error: 'Error al eliminar notificación' })

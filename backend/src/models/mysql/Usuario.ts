@@ -7,6 +7,7 @@ class Usuario extends Model {
     public email!: string
     public password_hash!: string
     public avatar_url!: string | null
+    public rol!: 'admin' | 'user'
 }
 
 Usuario.init({
@@ -15,6 +16,7 @@ Usuario.init({
     email: { type: DataTypes.STRING(150), allowNull: false, unique: true },
     password_hash: { type: DataTypes.STRING(255), allowNull: false },
     avatar_url: { type: DataTypes.STRING(500), defaultValue: null },
+    rol: { type: DataTypes.ENUM('admin', 'user'), allowNull: false, defaultValue: 'user' },
 }, { sequelize, tableName: 'usuarios', timestamps: true, createdAt: 'creado_en', updatedAt: false })
 
 export default Usuario

@@ -20,7 +20,7 @@ router.get('/movie/:peliculaId', verificarToken, async (req: AuthRequest, res: R
         }) as any
         res.json({ promedio: parseFloat(result?.promedio) || 0, total: parseInt(result?.total) || 0 })
     } catch (error: any) {
-        res.status(500).json({ error: 'Error al obtener calificaciones', detalle: error.message })
+        res.status(500).json({ error: 'Error al obtener calificaciones' })
     }
 })
 
@@ -28,7 +28,7 @@ router.get('/movie/:peliculaId', verificarToken, async (req: AuthRequest, res: R
 router.get('/user/:peliculaId', verificarToken, async (req: AuthRequest, res: Response) => {
     try {
         const calif = await Calificacion.findOne({
-            where: { usuario_id: req.usuario.id, pelicula_id: req.params.peliculaId }
+            where: { usuario_id: req.usuario!.id, pelicula_id: req.params.peliculaId }
         })
         res.json({ puntuacion: calif?.puntuacion || null })
     } catch (error: any) {
@@ -44,13 +44,13 @@ router.post('/', verificarToken, async (req: AuthRequest, res: Response) => {
         if (puntuacion < 1 || puntuacion > 10) return res.status(400).json({ error: 'puntuacion debe ser entre 1 y 10' })
 
         const [calif, created] = await Calificacion.findOrCreate({
-            where: { usuario_id: req.usuario.id, pelicula_id },
-            defaults: { usuario_id: req.usuario.id, pelicula_id, puntuacion }
+            where: { usuario_id: req.usuario!.id, pelicula_id },
+            defaults: { usuario_id: req.usuario!.id, pelicula_id, puntuacion }
         })
         if (!created) await calif.update({ puntuacion })
 
         const pelicula = await PeliculaSerie.findByPk(pelicula_id)
-        logActivity(req.usuario.id, created ? 'calificacion_crear' : 'calificacion_actualizar', {
+        logActivity(req.usuario!.id, created ? 'calificacion_crear' : 'calificacion_actualizar', {
             pelicula_id,
             titulo: pelicula?.titulo,
             puntuacion
@@ -58,7 +58,7 @@ router.post('/', verificarToken, async (req: AuthRequest, res: Response) => {
 
         res.status(created ? 201 : 200).json(calif)
     } catch (error: any) {
-        res.status(500).json({ error: 'Error al guardar calificación', detalle: error.message })
+        res.status(500).json({ error: 'Error al guardar calificación' })
     }
 })
 

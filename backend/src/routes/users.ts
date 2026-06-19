@@ -13,13 +13,13 @@ router.get('/:id', verificarToken, async (req: AuthRequest, res: Response) => {
         if (!usuario) return res.status(404).json({ error: 'Usuario no encontrado' })
         res.json(usuario)
     } catch (error: any) {
-        res.status(500).json({ error: 'Error al obtener usuario', detalle: error.message })
+        res.status(500).json({ error: 'Error al obtener usuario' })
     }
 })
 
 router.put('/:id', verificarToken, async (req: AuthRequest, res: Response) => {
     try {
-        if (parseInt(req.params.id) !== req.usuario.id)
+        if (parseInt(req.params.id) !== req.usuario!.id)
             return res.status(403).json({ error: 'Sin permiso' })
 
         const { nombre, avatar_url, password } = req.body
@@ -31,18 +31,18 @@ router.put('/:id', verificarToken, async (req: AuthRequest, res: Response) => {
         await Usuario.update(updates, { where: { id: req.params.id } })
         res.json({ mensaje: 'Perfil actualizado' })
     } catch (error: any) {
-        res.status(500).json({ error: 'Error al actualizar usuario', detalle: error.message })
+        res.status(500).json({ error: 'Error al actualizar usuario' })
     }
 })
 
 router.delete('/:id', verificarToken, async (req: AuthRequest, res: Response) => {
     try {
-        if (parseInt(req.params.id) !== req.usuario.id)
+        if (parseInt(req.params.id) !== req.usuario!.id)
             return res.status(403).json({ error: 'Sin permiso' })
         await Usuario.destroy({ where: { id: req.params.id } })
         res.json({ mensaje: 'Cuenta eliminada' })
     } catch (error: any) {
-        res.status(500).json({ error: 'Error al eliminar usuario', detalle: error.message })
+        res.status(500).json({ error: 'Error al eliminar usuario' })
     }
 })
 
